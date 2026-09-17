@@ -13,7 +13,9 @@ reviews. Grading is on the gap report, the agent, the harness, hand-written test
 - [x] Found the two goal IDs: `web.publish_post`, `web.pages_without_traffic`.
 - [x] Discovered the key gap: **no raw page-view data**, only `conversion_attribution`.
 - [x] Repo, `probe.py`, Bruno collection, capability notes.
-- [ ] The two things left in Week 1: **file one real bug** + **write the gap report**.
+- [x] **Gap report written** — `docs/gap-report.md` (the missing pageview primitive vs Ghost / Plausible / Fathom).
+- [x] Scraped the live site (51 pages, 100 posts; conversions all zero) — `research/domain-understanding-2026-09-17.md`.
+- [ ] Last Week-1 item: **file one real bug** (candidate identified, see Week 1 below).
 
 ---
 
@@ -22,16 +24,16 @@ reviews. Grading is on the gap report, the agent, the harness, hand-written test
 **Goal:** understand our seat deeply and produce the one graded Week-1 deliverable.
 
 - [x] Log in, read the seat in the UI, call the API.
-- [ ] **Gap report** (the deliverable, one page, three questions):
-  1. What does a real product do that we do not? (concrete features)
-  2. Which of those gaps can an agent close with our current tools vs. which need platform work?
-  3. What can an agent do that the product's UI cannot?
-  - Compare against a real, AI-native product: **publishing** side (Ghost / Webflow / Framer),
-    **analytics** side (Plausible / Fathom). Pick one, trial it, cite specifics.
-- [ ] **File one real, reproducible bug** not already on the class bug board (100 pts; known
-  bugs score 0). A good report: what you did, expected, happened, and the ids.
+- [x] **Gap report** (the deliverable) — done: [`gap-report.md`](gap-report.md). Three questions
+  answered against Ghost (publishing + native analytics) and Plausible / Fathom (traffic API),
+  grounded in our live scrape. Core finding: the gap is one missing data primitive (a pageview
+  table), not the protocol.
+- [ ] **File one real, reproducible bug** not on the class board (100 pts; known bugs = 0).
+  **Candidate:** published `Webpage` records whose `page_type` contradicts their content (e.g. a
+  published page titled "Mild steel plate shortage…" typed `error_404`). Reproduce and confirm
+  it is not intentional seed noise before filing.
 
-**Done when:** `docs/gap-report.md` exists and one bug is filed.
+**Done when:** `docs/gap-report.md` exists (done) and one bug is filed.
 
 ---
 
