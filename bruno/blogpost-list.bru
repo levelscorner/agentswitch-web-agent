@@ -1,0 +1,31 @@
+meta {
+  name: 07 BlogPost.list
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "BlogPost.list",
+      "arguments": { "limit": 5 }
+    }
+  }
+}

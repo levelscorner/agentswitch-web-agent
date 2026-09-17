@@ -1,0 +1,28 @@
+meta {
+  name: 04 MCP tools_list (our 236 tools)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list",
+    "params": {}
+  }
+}

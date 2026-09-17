@@ -1,0 +1,21 @@
+# Secrets — never commit
+.env
+*.token
+*.secret
+secrets/
+
+# Bruno API client — secret variable values / any local env files
+bruno/**/.env
+*.local.bru
+
+# Probe / run outputs (regenerable, may contain live data)
+probe-out/
+harness/runs/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/

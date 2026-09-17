@@ -1,0 +1,31 @@
+meta {
+  name: 05 Website.list
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "Website.list",
+      "arguments": {}
+    }
+  }
+}

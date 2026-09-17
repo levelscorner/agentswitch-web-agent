@@ -1,0 +1,31 @@
+meta {
+  name: 08 conversion_attribution (the "traffic" signal)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "endpoint.website.conversion_attribution",
+      "arguments": { "website_id": "{{websiteSuryodaya}}" }
+    }
+  }
+}

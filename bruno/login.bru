@@ -1,0 +1,30 @@
+meta {
+  name: 01 Login (captures token)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  // Grab the token from the login response and stash it in the environment,
+  // so every other request can use {{token}} without you copy-pasting it.
+  if (res && res.body && res.body.token) {
+    bru.setEnvVar("token", res.body.token);
+  }
+}
