@@ -29,9 +29,10 @@ reviews. Grading is on the gap report, the agent, the harness, hand-written test
   grounded in our live scrape. Core finding: the gap is one missing data primitive (a pageview
   table), not the protocol.
 - [ ] **File one real, reproducible bug** not on the class board (100 pts; known bugs = 0).
-  **Candidate:** published `Webpage` records whose `page_type` contradicts their content (e.g. a
-  published page titled "Mild steel plate shortage…" typed `error_404`). Reproduce and confirm
-  it is not intentional seed noise before filing.
+  Two candidates investigated 2026-09-17 and **refuted** (`page_type` = seed noise on a closed
+  enum; the role "discrepancy" = an intended shared-DB mutation), and a read-only invariant sweep
+  came back clean — see [`../research/bug-hunt-log.md`](../research/bug-hunt-log.md). Real bug
+  territory is **write-path silent no-ops**, to test with before/after DB reads during the build.
 
 **Done when:** `docs/gap-report.md` exists (done) and one bug is filed.
 

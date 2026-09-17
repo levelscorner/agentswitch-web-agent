@@ -17,7 +17,10 @@ Captured 2026-09-17 by driving the logged-in session over MCP (`tools/list` + re
 ## Our seat (from /api/auth/me)
 
 - email `team09@theschoolofai.in`, name "Team 09"
-- roles: `website_editor, user, viewer, agent_user`
+- roles: `website_editor, user, agent_user, website_admin, sales_viewer` (as of 2026-09-17 20:00;
+  an earlier read showed `viewer` instead of the two admin/sales roles — **roles change in the
+  shared DB**). **`website_admin` likely permits direct `publish`** rather than only
+  submit_for_review → approve_publish; confirm during the build.
 - allowed_apps: **website, agent, crm**
 - company_id `5cbe5a55-af74-4363-a436-f5350593114c`
 
