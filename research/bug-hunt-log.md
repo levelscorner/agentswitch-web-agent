@@ -85,3 +85,8 @@ and `from_path == to_path` self-redirect.
 3. `WebsiteRedirect` self-redirect loop — `…website-redirect-self-loop.md`
 
 All reproducible via `python3 -m harness.bughunt --run`.
+
+**FILED 2026-09-21** (`POST /api/bug-report`, HTTP 201; `GET /api/bug-report/mine` confirms 3):
+- `7d6cd211-c744-4f57-80b2-dc04e0c97fac` — analytics counters client-settable (view_count / hit_count)
+- `f8d458bc-152c-4047-81d3-6d30685cc962` — Webpage.sitemap_priority out of range
+- `e5d0803a-37a0-4d41-96be-8e5eb88ac7e6` — WebsiteRedirect self-redirect loop
