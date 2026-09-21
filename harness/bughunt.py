@@ -111,13 +111,27 @@ def hunt_transitions(client):
     try:
         base = f"harness-tx-{int(time.time())}"
 
-        # A) duplicate slug — two posts sharing one URL would be a real bug
-        mk(base)
-        try:
-            mk(base)
-            bugs.append(f"duplicate slug '{base}' accepted — two posts now share the same URL")
-        except MCPError:
-            print("dup-slug: rejected (good)")
+        # A) duplicate slug — a real bug ONLY if the second slug equals the first
+        #    (the platform auto-uniquifies with a -2 suffix, which is correct).
+        a = mk(base); b = mk(base)
+        sa = _get(client, "BlogPost.get", a.get("id")).get("slug")
+        sb = _get(client, "BlogPost.get", b.get("id")).get("slug")
+        if sa == sb:
+            bugs.append(f"duplicate slug accepted — two posts share slug {sa!r}")
+        else:
+            print(f"dup-slug: auto-uniquified {sa!r} -> {sb!r} (good)")
+
+        # D) integrity — the analytics view_count must NOT be settable by the client
+        inj = client.call("BlogPost.create", {"title": TEST_TITLE, "slug": base + "-inj",
+                          "website_id": wid, "content": "x", "view_count": 424242})
+        if isinstance(inj, dict) and inj.get("id"):
+            ids.append(inj["id"])
+            stored = _get(client, "BlogPost.get", inj["id"]).get("view_count")
+            if stored in (424242, 424242.0):
+                bugs.append(f"BlogPost.view_count is client-settable on create (stored {stored!r}) "
+                            f"- lets a user fabricate analytics")
+            else:
+                print(f"view_count injection ignored (stored {stored!r}) (good)")
 
         # B) illegal transition — approve_publish a draft that was NEVER submitted
         c = mk(base + "-c"); cid = c.get("id")

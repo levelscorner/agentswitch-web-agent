@@ -41,3 +41,18 @@ own `WorkOrder.transition` example). Our write paths — `BlogPost`/`Webpage` `c
 `submit_for_review → approve_publish → publish` transitions — are the place to watch. We will
 exercise them in the harness with before/after DB reads and cleanup, and file anything that
 silently no-ops.
+
+## 2026-09-21 — write-path hunt (`harness/bughunt.py`, live)
+
+| Probe | Result |
+|---|---|
+| create → read back | row persists as draft ✅ |
+| publish → read back | status flips to `published`, `published_at` set ✅ |
+| duplicate slug | platform auto-uniquifies (`slug` → `slug-2`) ✅ — a **false positive** until we compared the returned slugs (verify before filing) |
+| `approve_publish` a never-submitted draft | rejected ✅ |
+| `approve_publish` own draft | rejected — needs a **second person** (separation of duties) ✅ → our Publisher uses direct `BlogPost.publish` (allowed by `website_admin`) |
+| `status='published'` on create | ignored, stored `draft` ✅ (no bypass) |
+| **`view_count` injected on create** | **stored verbatim (`777777.0`) → FILED** — client-settable analytics |
+
+Net: write paths are well-built. One real bug: **`BlogPost.view_count` is client-settable** —
+see `docs/bug-reports/2026-09-21-blogpost-view-count-settable.md`.
