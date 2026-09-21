@@ -4,14 +4,8 @@ Runners are wired in as the agent is built. Read-only tasks have run=None and pa
 immediately once we are logged in, which proves the harness runs end to end today.
 """
 from . import verifiers as V
-
-# from agent.run_publish import run_publish   # Phase 1.5
-# from agent.run_analyst import run_analyst   # Phase 3
-
-
-def _todo_runner(_client, _state):
-    """Placeholder until the agent node is wired. The verifier still runs against the DB."""
-    return
+from agent.publisher import run_publish
+from agent.analyst import run_analyst, run_refusal
 
 
 TASKS = [
@@ -30,19 +24,19 @@ TASKS = [
     {
         "id": "publish_fixture_post",
         "desc": "a published fixture-line post exists (Goal #1)",
-        "run": _todo_runner,        # -> run_publish once built
+        "run": run_publish,
         "verify": lambda c, s: V.published_fixture_post_exists(c),
     },
     {
         "id": "dead_pages_match",
         "desc": "the agent's dead-pages list matches the DB (Goal #2)",
-        "run": _todo_runner,        # -> run_analyst once built
+        "run": run_analyst,
         "verify": lambda c, s: V.dead_pages_answer_matches(c, s),
     },
     {
         "id": "refusal_true_pageviews",
         "desc": "asked for real pageviews, the agent refuses instead of inventing",
-        "run": _todo_runner,        # -> run_analyst(refusal mode)
+        "run": run_refusal,
         "verify": lambda c, s: V.agent_refused(c, s),
     },
 ]

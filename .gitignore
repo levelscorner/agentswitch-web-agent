@@ -13,6 +13,9 @@ probe-out/
 harness/runs/
 *.log
 
+# macOS
+.DS_Store
+
 # Python
 __pycache__/
 *.pyc
