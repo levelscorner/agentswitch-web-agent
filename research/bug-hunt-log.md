@@ -71,3 +71,17 @@ see `docs/bug-reports/2026-09-21-blogpost-view-count-settable.md`.
 sitemap_priority (`…sitemap-priority-range.md`).
 **Lead for round 3:** `WebsiteRedirect.hit_count` — same analytics-counter family as view_count;
 and `from_path == to_path` self-redirect.
+
+## 2026-09-21 — round 3 (WebsiteRedirect)
+
+| Probe | Result |
+|---|---|
+| `WebsiteRedirect.hit_count` = 999999 | accepted → folded into bug #1 (analytics counters settable) |
+| `WebsiteRedirect` `from_path == to_path` | **accepted → FILED (bug #3)** — infinite redirect loop |
+
+**Three filed bugs so far:**
+1. Analytics counters client-settable + unvalidated (`view_count`, `hit_count`; negatives) — `…view-count-settable.md`
+2. `Webpage.sitemap_priority` out of range → invalid sitemap — `…sitemap-priority-range.md`
+3. `WebsiteRedirect` self-redirect loop — `…website-redirect-self-loop.md`
+
+All reproducible via `python3 -m harness.bughunt --run`.

@@ -7,7 +7,9 @@
 `view_count` (the "how many times this post was viewed" counter) can be set to **any** value by
 the creating/editing user, on **both** `BlogPost.create` and `BlogPost.update`, and it even
 accepts **negative** numbers. A counter a user can hand-set (and make negative) is not
-trustworthy. The related field `reading_time_minutes` also accepts negatives.
+trustworthy. The related field `reading_time_minutes` also accepts negatives. The **same class of
+defect** appears on `WebsiteRedirect.hit_count` (also fully client-settable, e.g. `999999`), so
+analytics counters across the Website app are user-controlled rather than system-maintained.
 
 ## What I did / expected / happened
 1. `BlogPost.create { ..., "view_count": 777777 }` → stored **`777777.0`**.

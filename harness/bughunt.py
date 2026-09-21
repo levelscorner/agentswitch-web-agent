@@ -194,12 +194,45 @@ def hunt_webpage(client):
     return bugs
 
 
+def hunt_redirect(client):
+    """WebsiteRedirect: hit_count is a settable analytics counter, and self-redirects loop."""
+    bugs = []
+    ids = []
+    wid = config.WEBSITE_SURYODAYA
+
+    def mkr(fp, tp, extra=None):
+        r = client.call("WebsiteRedirect.create", {"website_id": wid, "from_path": fp, "to_path": tp,
+                        "is_active": False, **(extra or {})})
+        if isinstance(r, dict) and r.get("id"):
+            ids.append(r["id"])
+        return r
+
+    try:
+        ts = int(time.time() * 1000)
+        g = _get(client, "WebsiteRedirect.get", mkr(f"/ht-{ts}-a", "/target", {"hit_count": 999999}).get("id"))
+        if g.get("hit_count") in (999999, 999999.0):
+            bugs.append("WebsiteRedirect.hit_count is client-settable (fabricated redirect analytics)")
+        loop = f"/ht-{ts}-loop"
+        r2 = mkr(loop, loop)
+        if isinstance(r2, dict) and r2.get("id"):
+            g2 = _get(client, "WebsiteRedirect.get", r2["id"])
+            if g2.get("from_path") == g2.get("to_path"):
+                bugs.append("WebsiteRedirect accepts a self-redirect (from_path == to_path) - infinite loop")
+    finally:
+        for i in ids:
+            try:
+                client.call("WebsiteRedirect.update", {"id": i, "is_active": False})
+            except MCPError:
+                pass
+    return bugs
+
+
 def main():
     client = Client.login()
     if "--run" not in sys.argv:
         dry(client)
         return
-    bugs = hunt(client) + hunt_transitions(client) + hunt_webpage(client)
+    bugs = hunt(client) + hunt_transitions(client) + hunt_webpage(client) + hunt_redirect(client)
     print("\n=== BUG CANDIDATES ===")
     if not bugs:
         print("none — write paths behaved correctly.")
