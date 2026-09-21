@@ -1,0 +1,158 @@
+<title>Web Agent DAG</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1a1d24; --muted:#5b6472; --line:#d7dce4;
+    --accent:#3b5bdb; --accent2:#2b8a3e; --accent3:#9c36b5; --accent4:#c2410c;
+    --chip:#eef1f6; --loopbg:#f0f4ff;
+  }
+  :root:not([data-theme="light"]){ @media (prefers-color-scheme:dark){
+    --bg:#12141a; --card:#1b1e26; --ink:#e7eaf0; --muted:#9aa4b2; --line:#2a2f3a;
+    --accent:#748ffc; --accent2:#69db7c; --accent3:#da77f2; --accent4:#ffa94d;
+    --chip:#242833; --loopbg:#1a2030;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#12141a; --card:#1b1e26; --ink:#e7eaf0; --muted:#9aa4b2; --line:#2a2f3a;
+    --accent:#748ffc; --accent2:#69db7c; --accent3:#da77f2; --accent4:#ffa94d;
+    --chip:#242833; --loopbg:#1a2030;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  .wrap{max-width:960px; margin:0 auto; padding-block:28px; padding-inline:16px;}
+  h1{font-size:26px; margin:0 0 4px;}
+  .sub{color:var(--muted); margin:0 0 18px;}
+  .banner{background:var(--loopbg); border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin:0 0 22px; font-weight:600;}
+  .banner span{color:var(--muted); font-weight:400;}
+  .flow{display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .node{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; width:100%; max-width:560px;}
+  .node.wide{max-width:100%;}
+  .pair{display:flex; gap:14px; width:100%; flex-wrap:wrap; justify-content:center;}
+  .pair .node{flex:1 1 320px;}
+  .arrow{color:var(--muted); font-size:20px; line-height:1;}
+  .nhead{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .dot{width:10px; height:10px; border-radius:50%;}
+  .nname{font-weight:700; font-size:16px;}
+  .njob{color:var(--muted); font-size:13.5px; margin:0 0 10px;}
+  .label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:8px 0 4px;}
+  .loop{display:flex; flex-wrap:wrap; gap:6px; align-items:center; background:var(--loopbg); border-radius:10px; padding:8px 10px;}
+  .step{background:var(--card); border:1px solid var(--line); border-radius:8px; padding:3px 9px; font-size:12.5px; font-weight:600;}
+  .lp{color:var(--muted);}
+  .chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px;}
+  .chip{background:var(--chip); border:1px solid var(--line); border-radius:999px; padding:2px 9px; font-size:11.5px; color:var(--muted);}
+  .chip.tool{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px;}
+  .io{background:var(--card); border:2px dashed var(--line); border-radius:14px; padding:12px 16px; width:100%; max-width:560px; text-align:center; font-weight:600;}
+  .panels{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:26px;}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px;}
+  .panel h3{margin:0 0 8px; font-size:15px;}
+  .panel ul{margin:0; padding-left:18px; color:var(--muted); font-size:13.5px;}
+  .panel code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; background:var(--chip); padding:1px 5px; border-radius:5px; color:var(--ink);}
+  .legend{margin-top:26px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px;}
+  .legend h3{margin:0 0 10px; font-size:15px;}
+  .legend table{width:100%; border-collapse:collapse; font-size:13px;}
+  .legend td{padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top;}
+  .legend td:first-child{white-space:nowrap; font-weight:700; color:var(--accent);}
+  @media (max-width:640px){ .panels{grid-template-columns:1fr;} }
+</style>
+
+<div class="wrap">
+  <h1>Our Web Agent — the DAG</h1>
+  <p class="sub">Team A9 · Website seat · one request, two goals. Each box is a small agent; the arrows say who runs when and who feeds whom.</p>
+
+  <div class="banner">The loop is the atom. The DAG is the molecule. <span>Every box below runs the same 4-step loop inside; the graph only wires the boxes together.</span></div>
+
+  <div class="flow">
+
+    <div class="io">📥 REQUEST: “Publish a post about the new fixture line, and tell me which pages nobody reads.”</div>
+    <div class="arrow">↓</div>
+
+    <div class="node">
+      <div class="nhead"><span class="dot" style="background:var(--accent)"></span><span class="nname">PLANNER</span></div>
+      <p class="njob">Reads the request, sees it is TWO independent goals, and routes them. (For a fixed request like ours this can be hardcoded, no LLM needed.)</p>
+      <div class="label">its inner loop</div>
+      <div class="loop"><span class="step">perceive</span><span class="lp">→</span><span class="step">decide (split)</span><span class="lp">→</span><span class="step">act (route)</span><span class="lp">→</span><span class="step">check</span></div>
+      <div class="chips"><span class="chip">S05 plan</span><span class="chip">S08 DAG</span></div>
+    </div>
+    <div class="arrow">↓ splits into two (run in parallel) ↓</div>
+
+    <div class="pair">
+      <div class="node">
+        <div class="nhead"><span class="dot" style="background:var(--accent2)"></span><span class="nname">PUBLISHER</span></div>
+        <p class="njob">Goal #1: write + publish the fixture-line post. Safe to re-run (won’t double-publish).</p>
+        <div class="label">its inner loop</div>
+        <div class="loop"><span class="step">perceive</span><span class="lp">→</span><span class="step">decide</span><span class="lp">→</span><span class="step">act</span><span class="lp">→</span><span class="step">re-read</span></div>
+        <div class="label">its tools</div>
+        <div class="chips"><span class="chip tool">BlogPost.list</span><span class="chip tool">BlogPost.create</span><span class="chip tool">BlogPost.publish</span></div>
+        <div class="chips"><span class="chip">S06 arch</span><span class="chip">S15 cheap model to draft</span><span class="chip">S12 safety</span></div>
+      </div>
+      <div class="node">
+        <div class="nhead"><span class="dot" style="background:var(--accent3)"></span><span class="nname">ANALYST</span></div>
+        <p class="njob">Goal #2: find pages “nobody reads” = orphan pages (published, not in any menu, not linked). States its definition + caveat.</p>
+        <div class="label">its inner loop</div>
+        <div class="loop"><span class="step">perceive</span><span class="lp">→</span><span class="step">decide</span><span class="lp">→</span><span class="step">act</span><span class="lp">→</span><span class="step">re-read</span></div>
+        <div class="label">its tools</div>
+        <div class="chips"><span class="chip tool">Webpage.list</span><span class="chip tool">WebsiteMenu.list</span><span class="chip tool">conversion_attribution</span></div>
+        <div class="chips"><span class="chip">S06 arch</span><span class="chip">S09 research (fixture facts)</span></div>
+      </div>
+    </div>
+    <div class="arrow">↓ both write to the shared state, then ↓</div>
+
+    <div class="node wide">
+      <div class="nhead"><span class="dot" style="background:var(--accent4)"></span><span class="nname">VERIFIER  (+ logger)</span></div>
+      <p class="njob">The referee. Reads the DATABASE (not the agents’ words) to confirm each goal really happened, and logs every step. This is the “agent can’t mark its own homework” rule.</p>
+      <div class="label">its inner loop</div>
+      <div class="loop"><span class="step">read DB</span><span class="lp">→</span><span class="step">compare</span><span class="lp">→</span><span class="step">pass / fail</span><span class="lp">→</span><span class="step">journal to disk</span></div>
+      <div class="label">its tools</div>
+      <div class="chips"><span class="chip tool">BlogPost.get</span><span class="chip tool">Webpage.list</span><span class="chip tool">(read-only)</span></div>
+      <div class="chips"><span class="chip">S17 verify-refine</span><span class="chip">S18 four-field score</span></div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="io">📤 ANSWER + a saved run journal (what the harness scores)</div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3>What is SHARED across every node</h3>
+      <ul>
+        <li><code>client.py</code> — the one MCP client (login + call). All nodes use it to talk to the platform.</li>
+        <li>The 4-step loop machinery (perceive→decide→act→check).</li>
+        <li><b>Memory</b> — facts, recipes, preferences.</li>
+        <li>The <b>state dict</b> — the shared notebook that flows through the graph.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>What is PRIVATE to each node</h3>
+      <ul>
+        <li>Its <b>system prompt</b> (its personality + job).</li>
+        <li>Its <b>tool subset</b> (Publisher can write; Verifier is read-only).</li>
+        <li>Its <b>narrow task</b> — it does NOT need the whole picture, just its slice + the state keys it reads.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px;">
+    <h3>The shared “notebook” (state dict) as it fills up</h3>
+    <ul>
+      <li>start: <code>{ request: "..." }</code></li>
+      <li>after PUBLISHER: <code>{ ..., published_post_id: "abc", post_title: "..." }</code></li>
+      <li>after ANALYST: <code>{ ..., dead_pages: [...], definition: "orphan pages", caveat: "no view data" }</code></li>
+      <li>after VERIFIER: <code>{ ..., verdicts: { publish: PASS, dead_pages: PASS } }</code></li>
+    </ul>
+  </div>
+
+  <div class="legend">
+    <h3>Which session each part comes from</h3>
+    <table>
+      <tr><td>S03</td><td>the skeleton: request → tool calls → result</td></tr>
+      <tr><td>S04</td><td>we are the MCP <b>client</b> of the platform (no server to build)</td></tr>
+      <tr><td>S05</td><td>the Planner: decompose the goal, plan the tool order</td></tr>
+      <tr><td>S06</td><td>the 4-step architecture inside every node (Perception→Memory→Decision→Action)</td></tr>
+      <tr><td>S07</td><td>memory: facts / recipes / preferences (shared)</td></tr>
+      <tr><td>S08</td><td>the DAG itself: nodes, parallel branches, the shared blackboard</td></tr>
+      <tr><td>S09</td><td>research (used for the gap report; can enrich the post)</td></tr>
+      <tr><td>S12</td><td>safety: circuit breaker, JSON repair, refusal</td></tr>
+      <tr><td>S15</td><td>model routing: cheap model to draft, strong model to decide</td></tr>
+      <tr><td>S17</td><td>verify → refine; the agent can’t grade its own homework</td></tr>
+      <tr><td>S18</td><td>the harness that scores it from the DB (Outcome / Integrity / Verification / Cost)</td></tr>
+    </table>
+  </div>
+</div>
