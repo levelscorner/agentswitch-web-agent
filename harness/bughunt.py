@@ -184,6 +184,16 @@ def hunt_webpage(client):
                 got = _get(client, "Webpage.get", p["id"]).get("sitemap_priority")
                 if got in (val, float(val)):
                     bugs.append(f"Webpage.sitemap_priority accepts out-of-range {val} (sitemap spec is 0.0-1.0)")
+        # URL fields are not validated (canonical_url / og_image_url)
+        u = client.call("Webpage.create", {"title": TEST_TITLE, "slug": f"ht-{int(time.time()*1e6)}",
+                        "website_id": wid, "canonical_url": "not a real url", "og_image_url": "javascript:alert(1)"})
+        if isinstance(u, dict) and u.get("id"):
+            pages.append(u["id"])
+            g = _get(client, "Webpage.get", u["id"])
+            if g.get("canonical_url") == "not a real url":
+                bugs.append("Webpage.canonical_url accepts a non-URL string")
+            if g.get("og_image_url") == "javascript:alert(1)":
+                bugs.append("Webpage.og_image_url accepts a javascript: scheme (unsafe URL)")
     finally:
         for i in pages:
             for t in ("Webpage.unpublish", "Webpage.archive"):

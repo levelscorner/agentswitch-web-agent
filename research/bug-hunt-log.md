@@ -90,3 +90,18 @@ All reproducible via `python3 -m harness.bughunt --run`.
 - `7d6cd211-c744-4f57-80b2-dc04e0c97fac` — analytics counters client-settable (view_count / hit_count)
 - `f8d458bc-152c-4047-81d3-6d30685cc962` — Webpage.sitemap_priority out of range
 - `e5d0803a-37a0-4d41-96be-8e5eb88ac7e6` — WebsiteRedirect self-redirect loop
+
+## 2026-09-21 — round 4 (Webpage hierarchy + URL fields)
+
+| Probe | Result |
+|---|---|
+| Webpage self-parent (`parent_page_id == id`) | **rejected** ✅ ("Cannot set parent_page_id to self") |
+| Webpage indirect cycle (A→B→A) | **rejected** ✅ ("Circular parent_page_id reference detected") |
+| Webpage nasty slug | **sanitised** ✅ ("Bad Slug !@# CAPS" → "bad-slug-…-caps") |
+| **`Webpage.canonical_url` = non-URL** | **accepted** → FILED (bug #4) |
+| **`Webpage.og_image_url` = `javascript:alert(1)`** | **accepted** → FILED (bug #4) |
+
+**FILED bug #4:** `26517e51-b7aa-4ef5-bf34-79778549b52e` — Webpage URL fields unvalidated
+(canonical_url non-URL, og_image_url unsafe scheme). Hierarchy + slug validation are solid.
+
+**Four bugs filed total.**
