@@ -170,12 +170,36 @@ def hunt_transitions(client):
     return bugs
 
 
+def hunt_webpage(client):
+    """Webpage numeric validation: sitemap_priority must be 0.0-1.0 (sitemap spec)."""
+    bugs = []
+    pages = []
+    wid = config.WEBSITE_SURYODAYA
+    try:
+        for val in (99, -5):
+            p = client.call("Webpage.create", {"title": TEST_TITLE, "slug": f"ht-{int(time.time()*1e6)}",
+                            "website_id": wid, "sitemap_priority": val})
+            if isinstance(p, dict) and p.get("id"):
+                pages.append(p["id"])
+                got = _get(client, "Webpage.get", p["id"]).get("sitemap_priority")
+                if got in (val, float(val)):
+                    bugs.append(f"Webpage.sitemap_priority accepts out-of-range {val} (sitemap spec is 0.0-1.0)")
+    finally:
+        for i in pages:
+            for t in ("Webpage.unpublish", "Webpage.archive"):
+                try:
+                    client.call(t, {"id": i})
+                except MCPError:
+                    pass
+    return bugs
+
+
 def main():
     client = Client.login()
     if "--run" not in sys.argv:
         dry(client)
         return
-    bugs = hunt(client) + hunt_transitions(client)
+    bugs = hunt(client) + hunt_transitions(client) + hunt_webpage(client)
     print("\n=== BUG CANDIDATES ===")
     if not bugs:
         print("none — write paths behaved correctly.")

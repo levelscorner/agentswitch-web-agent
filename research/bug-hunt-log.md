@@ -56,3 +56,18 @@ silently no-ops.
 
 Net: write paths are well-built. One real bug: **`BlogPost.view_count` is client-settable** —
 see `docs/bug-reports/2026-09-21-blogpost-view-count-settable.md`.
+
+## 2026-09-21 — round 2 (numeric validation)
+
+| Probe | Result |
+|---|---|
+| `view_count` via `update` | settable (555555) — strengthens bug #1 |
+| `view_count` negative | `-42` accepted — a count can't be negative |
+| `reading_time_minutes` negative | `-9` accepted |
+| **`Webpage.sitemap_priority` = 99 / -5** | **accepted → FILED (bug #2)** — sitemap spec is 0.0-1.0 → invalid sitemap |
+| `BlogPost.published_at` backdated (1999) | accepted, but likely intended (scheduled date) — not filed |
+
+**Two filed bugs:** view_count (`docs/bug-reports/…view-count-settable.md`) and
+sitemap_priority (`…sitemap-priority-range.md`).
+**Lead for round 3:** `WebsiteRedirect.hit_count` — same analytics-counter family as view_count;
+and `from_path == to_path` self-redirect.
