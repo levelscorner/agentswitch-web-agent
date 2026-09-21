@@ -1,0 +1,27 @@
+meta {
+  name: 09 File a bug (POST /api/bug-report)
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{ASIND}}/api/bug-report
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "description": "BlogPost.view_count is client-settable. Steps: BlogPost.create with view_count:777777 (title/slug/website_id/content set), then BlogPost.get the new id. Expected: view_count starts at 0 and is only incremented by the system on a real view; an editor should not set it. Actual: stored 777777.0. Also settable via BlogPost.update, and it accepts negative values (view_count:-42 stored as -42.0; reading_time_minutes:-9 stored as -9.0). So the analytics counter is fully client-controlled and unvalidated. Seat: Website (team09), Suryodaya.",
+    "page": "WebsiteBuilder",
+    "agent_seat": "Website"
+  }
+}
