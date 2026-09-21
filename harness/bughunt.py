@@ -15,6 +15,7 @@ clean it up afterwards. Every test row is titled "[HARNESS TEST] ..." so it is o
 import sys
 import time
 
+from agent import config
 from agent.client import Client, MCPError
 
 TEST_TITLE = "[HARNESS TEST] fixture line — delete me"
@@ -45,13 +46,15 @@ def dry(client):
 
 def hunt(client):
     bugs = []
-    sch = _schema(client, "BlogPost.create") or {"required": [], "props": []}
-    # Build a minimal valid payload: title + any other required fields (best-effort defaults).
-    payload = {"title": TEST_TITLE}
-    for f in sch["required"]:
-        if f in payload:
-            continue
-        payload[f] = "harness placeholder" if "content" in f or "body" in f or "slug" in f else "test"
+    # Build a real, valid payload (bad input would look like a bug but isn't).
+    payload = {
+        "title": TEST_TITLE,
+        "slug": f"harness-test-fixture-{int(time.time())}",
+        "website_id": config.WEBSITE_SURYODAYA,
+        "content": "Harness write-path test. Safe to delete.",
+    }
+    for f in (_schema(client, "BlogPost.create") or {}).get("required", []):
+        payload.setdefault(f, "test")
 
     created = None
     try:
@@ -89,20 +92,81 @@ def hunt(client):
                     pass
             print(f"cleaned up test post id={pid}")
 
-    print("\n=== BUG CANDIDATES ===")
-    if not bugs:
-        print("none — write paths behaved correctly.")
-    for b in bugs:
-        print(" -", b)
+    return bugs
+
+
+def hunt_transitions(client):
+    """Edge cases in the workflow state machine, where silent bugs live."""
+    bugs = []
+    wid = config.WEBSITE_SURYODAYA
+    ids = []
+
+    def mk(slug):
+        p = client.call("BlogPost.create",
+                        {"title": TEST_TITLE, "slug": slug, "website_id": wid, "content": "x"})
+        if isinstance(p, dict) and p.get("id"):
+            ids.append(p["id"])
+        return p
+
+    try:
+        base = f"harness-tx-{int(time.time())}"
+
+        # A) duplicate slug — two posts sharing one URL would be a real bug
+        mk(base)
+        try:
+            mk(base)
+            bugs.append(f"duplicate slug '{base}' accepted — two posts now share the same URL")
+        except MCPError:
+            print("dup-slug: rejected (good)")
+
+        # B) illegal transition — approve_publish a draft that was NEVER submitted
+        c = mk(base + "-c"); cid = c.get("id")
+        try:
+            client.call("BlogPost.approve_publish", {"id": cid})
+            st = _get(client, "BlogPost.get", cid).get("status")
+            if st == "published":
+                bugs.append(f"approve_publish PUBLISHED a draft never submitted_for_review "
+                            f"(id={cid}) — a workflow bypass")
+            else:
+                print(f"illegal approve: status stayed {st!r}")
+        except MCPError:
+            print("illegal approve: rejected (good)")
+
+        # C) observe the normal workflow; flag only a success-with-no-change
+        d = mk(base + "-d"); did = d.get("id")
+        for tool in ("BlogPost.submit_for_review", "BlogPost.approve_publish"):
+            before = _get(client, "BlogPost.get", did).get("status")
+            try:
+                client.call(tool, {"id": did})
+            except MCPError as e:
+                print(f"{tool}: raised {e}")
+                continue
+            after = _get(client, "BlogPost.get", did).get("status")
+            print(f"{tool}: {before!r} -> {after!r}")
+            if after == before:
+                bugs.append(f"{tool} returned success but status stayed {after!r} (id={did}) — silent no-op")
+    finally:
+        for i in ids:
+            for tool in ("BlogPost.unpublish", "BlogPost.archive"):
+                try:
+                    client.call(tool, {"id": i})
+                except MCPError:
+                    pass
+        print(f"cleaned up {len(ids)} test posts")
     return bugs
 
 
 def main():
     client = Client.login()
-    if "--run" in sys.argv:
-        hunt(client)
-    else:
+    if "--run" not in sys.argv:
         dry(client)
+        return
+    bugs = hunt(client) + hunt_transitions(client)
+    print("\n=== BUG CANDIDATES ===")
+    if not bugs:
+        print("none — write paths behaved correctly.")
+    for b in bugs:
+        print(" -", b)
 
 
 if __name__ == "__main__":
