@@ -1,0 +1,14 @@
+meta {
+  name: 10 My bug reports (GET /api/bug-report/mine)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{ASIND}}/api/bug-report/mine
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
