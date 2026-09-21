@@ -105,3 +105,21 @@ All reproducible via `python3 -m harness.bughunt --run`.
 (canonical_url non-URL, og_image_url unsafe scheme). Hierarchy + slug validation are solid.
 
 **Four bugs filed total.**
+
+## 2026-09-21 — round 5 (background workflow: 6 agents, schema analysis → live verify)
+
+A workflow analysed every writable entity's create/update schema for validation gaps (10 ranked
+candidates); I verified the safe, high-value ones live (payloads kept **non-live** + **neutralised**).
+
+| Candidate | Result |
+|---|---|
+| `WebsiteMenu.url` = `javascript:` | **CONFIRMED** — stored XSS in site-wide nav |
+| `PortfolioItem.project_url` = `javascript:` | **CONFIRMED** — stored XSS in portfolio href |
+| `Webpage.json_ld_override` = `</script>…` | **CONFIRMED** — stored XSS (script-tag breakout) |
+| `WebsiteRedirect.to_path` = external URL | **CONFIRMED** — open redirect |
+| `WebsiteScan` scores 9999 / -50 | **CONFIRMED** — out of the 0-100 range |
+| `AgentMemory.company_id` = foreign tenant | **rejected** ✅ ("Permission denied") — tenant isolation holds |
+| `AgentSession.actor_roles` forge | create failed (not creatable that way) — unverified |
+
+**4 new reports** in `docs/bug-reports/`: stored-xss-link-fields, jsonld-override-xss, open-redirect,
+websitescan-score-range. **Total distinct bugs found: 8** (4 filed + 4 new awaiting the in-app button).
