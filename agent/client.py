@@ -52,12 +52,23 @@ def _http(method, url, token=None, body=None, timeout=30):
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=_SSL) as r:
-            return r.status, json.loads(r.read().decode())
+            return r.status, _decode(r.read())
     except urllib.error.HTTPError as e:
+        return e.code, _decode(e.read() if e.fp else b"")
+
+
+def _decode(raw):
+    """Return parsed JSON when the body is JSON, else the raw text. The website
+    render/serve endpoints answer HTML/CSS, not JSON, so blind json.loads crashed."""
+    if not raw:
+        return None
+    try:
+        return json.loads(raw.decode())
+    except Exception:
         try:
-            return e.code, json.loads(e.read().decode())
+            return raw.decode("utf-8", "replace")
         except Exception:
-            return e.code, None
+            return raw
 
 
 class Client:
