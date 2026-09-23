@@ -11,7 +11,7 @@ DB-verified state. Grading reads DB state, not this text; the text is for the hu
 import sys
 from types import SimpleNamespace
 
-from agent import llm, reliability
+from agent import llm, reliability, verify
 from agent.client import Client
 from agent.dag import DAG, Node
 from agent.publisher import run_publish
@@ -72,6 +72,11 @@ def compose(state):
         )
     if state.get("refused"):
         parts.append(f"I can't produce exact pageview numbers. {state.get('refuse_reason')}")
+    v = state.get("verify")
+    if v and v.get("goals"):
+        line = "; ".join(f"{g} {'OK' if r['ok'] else 'FAILED (' + r['note'] + ')'}"
+                         for g, r in v["goals"].items())
+        parts.append("Verified against the DB: " + line)
     return "\n\n".join(parts) or "I could not map that request to anything I can do."
 
 
@@ -83,6 +88,7 @@ def build_dag(goals):
     for g in goals:
         fn = GOALS[g]
         dag.add(Node(g, lambda ctx, s, fn=fn: fn(ctx.client, s)))
+    dag.add(Node("verify", lambda ctx, s: verify.run_verify(ctx.client, s), deps=list(goals)))
     return dag
 
 
@@ -93,7 +99,20 @@ def respond(prompt, client=None):
     state = {"prompt": prompt, "goals": goals}
     ctx = SimpleNamespace(client=client)
     build_dag(goals).run(ctx, state)
+    _refine(ctx, state)                      # S17: one refine pass if a goal failed reality
     return goals, compose(state), state
+
+
+def _refine(ctx, state):
+    """If the Verifier flagged a goal as not landed, re-run that goal once, then
+    re-check. One pass only — the breaker still caps total work."""
+    v = state.get("verify", {})
+    if v.get("ok", True):
+        return
+    for g, res in v.get("goals", {}).items():
+        if not res.get("ok") and g in GOALS:
+            GOALS[g](ctx.client, state)
+    state["verify"] = verify.reality_check(ctx.client, state)
 
 
 def main():
