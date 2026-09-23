@@ -11,6 +11,7 @@ bruno/**/.env
 # Probe / run outputs (regenerable, may contain live data)
 probe-out/
 harness/runs/
+agent/mem_store/
 *.log
 
 # macOS

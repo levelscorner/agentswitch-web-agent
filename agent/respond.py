@@ -11,7 +11,7 @@ DB-verified state. Grading reads DB state, not this text; the text is for the hu
 import sys
 from types import SimpleNamespace
 
-from agent import llm, reliability, verify
+from agent import llm, memory, reliability, verify
 from agent.client import Client
 from agent.dag import DAG, Node
 from agent.publisher import run_publish
@@ -95,12 +95,24 @@ def build_dag(goals):
 def respond(prompt, client=None):
     client = client or Client.login()
     llm.set_breaker(reliability.Breaker())   # fresh per-run budget cap + circuit breaker
+    mem = memory.Memory(client).seed_defaults()
     goals = plan(prompt)
-    state = {"prompt": prompt, "goals": goals}
-    ctx = SimpleNamespace(client=client)
+    state = {"prompt": prompt, "goals": goals,
+             "recalled_definition": mem.get_fact("orphan_definition")}  # S07: read before acting
+    ctx = SimpleNamespace(client=client, memory=mem)
     build_dag(goals).run(ctx, state)
     _refine(ctx, state)                      # S17: one refine pass if a goal failed reality
+    _remember(mem, state)                    # S07: write what we learned
     return goals, compose(state), state
+
+
+def _remember(mem, state):
+    if state.get("definition"):
+        mem.set_fact("orphan_definition", state["definition"])
+    if "dead_pages" in state:
+        mem.set_fact("orphan_count", len(state["dead_pages"]))
+    if state.get("published_post_id"):
+        mem.add_episode({"goal": "publish", "post_id": state["published_post_id"]})
 
 
 def _refine(ctx, state):
