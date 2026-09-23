@@ -10,9 +10,11 @@ DB-verified state. Grading reads DB state, not this text; the text is for the hu
 """
 import json
 import sys
+from types import SimpleNamespace
 
 from agent import llm
 from agent.client import Client
+from agent.dag import DAG, Node
 from agent.publisher import run_publish
 from agent.analyst import run_analyst, run_refusal
 
@@ -75,12 +77,23 @@ def compose(state):
     return "\n\n".join(parts) or "I could not map that request to anything I can do."
 
 
+def build_dag(goals):
+    """Wire the planned goals into a DAG (S08). publish and dead_pages are
+    independent, so the engine runs them in parallel; refuse stands alone.
+    Each node adapts a goal function (client, state) into a node run (ctx, state)."""
+    dag = DAG(max_workers=3)
+    for g in goals:
+        fn = GOALS[g]
+        dag.add(Node(g, lambda ctx, s, fn=fn: fn(ctx.client, s)))
+    return dag
+
+
 def respond(prompt, client=None):
     client = client or Client.login()
     goals = plan(prompt)
     state = {"prompt": prompt, "goals": goals}
-    for g in goals:
-        GOALS[g](client, state)
+    ctx = SimpleNamespace(client=client)
+    build_dag(goals).run(ctx, state)
     return goals, compose(state), state
 
 
