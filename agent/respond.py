@@ -8,11 +8,10 @@ This is the S05 planner on top of the S06 loops: an LLM maps the request to a sm
 goals, then we execute each goal deterministically and compose a human-facing reply from the
 DB-verified state. Grading reads DB state, not this text; the text is for the human/demo.
 """
-import json
 import sys
 from types import SimpleNamespace
 
-from agent import llm
+from agent import llm, reliability
 from agent.client import Client
 from agent.dag import DAG, Node
 from agent.publisher import run_publish
@@ -34,9 +33,8 @@ PLANNER_SYSTEM = (
 def plan(prompt):
     """LLM decides which goals the request needs; keyword routing is the fallback."""
     try:
-        text, _ = llm.draft(PLANNER_SYSTEM, prompt, max_tokens=200)
-        goals = json.loads(text[text.index("{"):text.rindex("}") + 1]).get("goals", [])
-        goals = [g for g in goals if g in GOALS]
+        data = llm.draft_json(PLANNER_SYSTEM, prompt, tier="simple", max_tokens=200)
+        goals = [g for g in data.get("goals", []) if g in GOALS]
         if goals:
             return goals
     except Exception:
@@ -90,6 +88,7 @@ def build_dag(goals):
 
 def respond(prompt, client=None):
     client = client or Client.login()
+    llm.set_breaker(reliability.Breaker())   # fresh per-run budget cap + circuit breaker
     goals = plan(prompt)
     state = {"prompt": prompt, "goals": goals}
     ctx = SimpleNamespace(client=client)
