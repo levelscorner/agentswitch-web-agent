@@ -56,6 +56,37 @@ Full diagrams (auth flow + the graded-task data flow) are in
 
 ---
 
+## The agent — a small hierarchy
+
+The request flows through a bounded-determinism graph: a **supervisor** routes the planned
+goals to a roster of workers; each real goal is a **sub-agent** (a subgraph) that gets only a
+scoped slice of state, runs its own internal DAG, and returns only its declared outputs — its
+scratch never leaks back. Hand-rolled on our own DAG (stdlib + the Anthropic SDK, no framework).
+
+```
+respond()
+  → plan (LLM → goals)
+  → Supervisor routes the roster (independents run in parallel):
+       publish     (subgraph)  perceive → decide → act → re-read   [idempotent + compensation]
+       dead_pages  (subgraph)  fetch pages ‖ menus → detect → assemble   [scoped, isolated]
+       refuse      (function)  honest refusal when the data can't support the ask
+  → verify (re-read the DB — truth, not the agent's words)
+  → compose
+```
+
+| File | Role |
+|---|---|
+| `agent/supervisor.py` | the "daddy": routes goals to workers, then verify; bounded to routing + filling |
+| `agent/subgraph.py` + `agent/subgraphs.py` | sub-agent primitive + the publish / dead_pages sub-agents (scoped I/O) |
+| `agent/state.py` | typed blackboard — named channels + reducers + `scope()` / `absorb()` |
+| `agent/dag.py` | the engine — topological run, parallel independents, per-node timing trace |
+| `agent/reliability.py` | retries · JSON-repair · per-run budget + circuit breaker |
+| `agent/verify.py` | re-read the DB and confirm; LLM-judge fallback; refusal |
+| `agent/memory.py` | 3-tier memory backed by the platform `AgentMemory` |
+| `harness/` | scored task runner · `adapter.py` integration seam · `daily_hunt.py` (read-only probe-and-draft) |
+
+---
+
 ## Repository layout
 
 ```
@@ -72,9 +103,10 @@ agentswitch-web-agent/
 │   ├── environments/             # Suryodaya (India) + Keystone (US)
 │   └── *.bru                     # login, auth-me, MCP handshake, tools/call examples
 ├── probe.py                      # zero-dep read-only connection test + capability dump
+├── agent/                        # the agent: supervisor, subgraphs, state, dag, verify, memory…
+├── harness/                      # scored tasks + DB-reading verifiers + adapter + daily_hunt
 ├── .env.example                  # copy to .env (git-ignored) and fill locally
 └── .gitignore
-# to come: agent/ (the loop) and harness/ (tasks + verifiers)
 ```
 
 ---
