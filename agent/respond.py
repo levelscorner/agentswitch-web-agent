@@ -11,13 +11,17 @@ DB-verified state. Grading reads DB state, not this text; the text is for the hu
 import sys
 from types import SimpleNamespace
 
-from agent import llm, memory, reliability, verify
+from agent import config, llm, memory, reliability, verify
 from agent.client import Client
-from agent.dag import DAG, Node
-from agent.publisher import run_publish
-from agent.analyst import run_analyst, run_refusal
+from agent.state import State
+from agent.supervisor import Supervisor
+from agent.subgraphs import dead_pages_subgraph, publish_subgraph
+from agent.analyst import run_refusal
 
-GOALS = {"publish": run_publish, "dead_pages": run_analyst, "refuse": run_refusal}
+# The supervisor's roster. publish and dead_pages are real sub-agents (subgraphs) — each gets
+# only a scoped slice of state; refuse is a trusted one-shot function. The supervisor decides,
+# per request, which of these to call — a capability is only invoked if the plan needs it.
+ROSTER = {"publish": publish_subgraph, "dead_pages": dead_pages_subgraph, "refuse": run_refusal}
 
 PLANNER_SYSTEM = (
     "You route a website-agent request to goals. Available goals:\n"
@@ -34,7 +38,7 @@ def plan(prompt):
     """LLM decides which goals the request needs; keyword routing is the fallback."""
     try:
         data = llm.draft_json(PLANNER_SYSTEM, prompt, tier="simple", max_tokens=200)
-        goals = [g for g in data.get("goals", []) if g in GOALS]
+        goals = [g for g in data.get("goals", []) if g in ROSTER]
         if goals:
             return goals
     except Exception:
@@ -80,28 +84,18 @@ def compose(state):
     return "\n\n".join(parts) or "I could not map that request to anything I can do."
 
 
-def build_dag(goals):
-    """Wire the planned goals into a DAG (S08). publish and dead_pages are
-    independent, so the engine runs them in parallel; refuse stands alone.
-    Each node adapts a goal function (client, state) into a node run (ctx, state)."""
-    dag = DAG(max_workers=3)
-    for g in goals:
-        fn = GOALS[g]
-        dag.add(Node(g, lambda ctx, s, fn=fn: fn(ctx.client, s)))
-    dag.add(Node("verify", lambda ctx, s: verify.run_verify(ctx.client, s), deps=list(goals)))
-    return dag
-
-
 def respond(prompt, client=None):
     client = client or Client.login()
     llm.set_breaker(reliability.Breaker())   # fresh per-run budget cap + circuit breaker
     mem = memory.Memory(client).seed_defaults()
     goals = plan(prompt)
-    state = {"prompt": prompt, "goals": goals,
-             "recalled_definition": mem.get_fact("orphan_definition")}  # S07: read before acting
+    state = State({"prompt": prompt, "goals": goals,
+                   "website_id": config.WEBSITE_SURYODAYA,        # global channel for sub-agents
+                   "recalled_definition": mem.get_fact("orphan_definition")})  # S07: read first
     ctx = SimpleNamespace(client=client, memory=mem)
-    build_dag(goals).run(ctx, state)
-    _refine(ctx, state)                      # S17: one refine pass if a goal failed reality
+    sup = Supervisor(ROSTER)                 # the 'daddy' routes goals to workers / sub-agents
+    sup.run(ctx, state, goals)               # S08 parallel + scoped subgraphs + verify barrier
+    _refine(sup, ctx, state)                 # S17: one refine pass if a goal failed reality
     _remember(mem, state)                    # S07: write what we learned
     return goals, compose(state), state
 
@@ -115,15 +109,15 @@ def _remember(mem, state):
         mem.add_episode({"goal": "publish", "post_id": state["published_post_id"]})
 
 
-def _refine(ctx, state):
-    """If the Verifier flagged a goal as not landed, re-run that goal once, then
-    re-check. One pass only — the breaker still caps total work."""
+def _refine(sup, ctx, state):
+    """If the Verifier flagged a goal as not landed, re-run that worker once through the
+    supervisor (scoping preserved), then re-check. One pass only — the breaker caps work."""
     v = state.get("verify", {})
     if v.get("ok", True):
         return
     for g, res in v.get("goals", {}).items():
-        if not res.get("ok") and g in GOALS:
-            GOALS[g](ctx.client, state)
+        if not res.get("ok"):
+            sup.run_one(ctx, state, g)
     state["verify"] = verify.reality_check(ctx.client, state)
 
 
