@@ -35,32 +35,10 @@ def _parse(text):
 
 
 def run_publish(client, state):
-    # PERCEIVE — already published? then we are done (safe to re-run).
-    for p in _posts(client):
-        if p.get("status") == "published" and "fixture" in (p.get("title") or "").lower():
-            state.update(published_post_id=p.get("id"), post_title=p.get("title"),
-                         note="a published fixture post already exists")
-            return
-
-    # DECIDE — draft the post with the LLM.
-    text, usage = llm.draft(
-        SYSTEM,
-        "Announce our new line of precision work-holding fixtures for procurement and "
-        "shop-floor buyers. Say what they are and give one concrete benefit.")
-    state.setdefault("cost", {}).update(usage)
-    post = _parse(text)
-    title = post.get("title") or "Introducing our new fixture line"
-    body = post.get("content") or text
-
-    # ACT — create the draft, then publish it.
-    created = client.call("BlogPost.create", {
-        "title": title, "slug": _slug(title),
-        "website_id": config.WEBSITE_SURYODAYA, "content": body,
-    })
-    pid = created["id"]
-    client.call("BlogPost.publish", {"id": pid})
-
-    # RE-READ — confirm it truly published (also our write-path check).
-    back = client.call("BlogPost.get", {"id": pid})
-    state.update(published_post_id=pid, post_title=title,
-                 published_status=back.get("status"))
+    """Goal #1 now runs as a real sub-agent (perceive -> decide -> act -> re-read with
+    idempotency + compensation). This is the compatibility entry point (the harness and
+    any legacy caller use it): hand the publish subgraph a scoped input, copy outputs back.
+    The helpers above (SYSTEM, _parse, _slug) are imported by that subgraph."""
+    from agent.subgraphs import publish_subgraph   # local import avoids an import cycle
+    out = publish_subgraph.run(client, {"website_id": config.WEBSITE_SURYODAYA})
+    state.update(out)

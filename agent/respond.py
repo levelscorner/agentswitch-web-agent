@@ -15,13 +15,13 @@ from agent import config, llm, memory, reliability, verify
 from agent.client import Client
 from agent.state import State
 from agent.supervisor import Supervisor
-from agent.subgraphs import dead_pages_subgraph
-from agent.publisher import run_publish
+from agent.subgraphs import dead_pages_subgraph, publish_subgraph
 from agent.analyst import run_refusal
 
-# The supervisor's roster: publish + refuse are trusted function workers (they get the
-# whole blackboard); dead_pages is a real sub-agent (subgraph) that gets only a scoped slice.
-ROSTER = {"publish": run_publish, "dead_pages": dead_pages_subgraph, "refuse": run_refusal}
+# The supervisor's roster. publish and dead_pages are real sub-agents (subgraphs) — each gets
+# only a scoped slice of state; refuse is a trusted one-shot function. The supervisor decides,
+# per request, which of these to call — a capability is only invoked if the plan needs it.
+ROSTER = {"publish": publish_subgraph, "dead_pages": dead_pages_subgraph, "refuse": run_refusal}
 
 PLANNER_SYSTEM = (
     "You route a website-agent request to goals. Available goals:\n"

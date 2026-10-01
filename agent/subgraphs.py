@@ -5,9 +5,10 @@
 → assemble — appends findings into a reducer channel, and returns only its three
 output channels. Its scratch (`_pages`, `_menus`) stays private to the subgraph.
 """
-from agent import config
+from agent import config, llm
 from agent.dag import DAG, Node
 from agent.subgraph import Subgraph
+from agent.publisher import SYSTEM as PUB_SYSTEM, _parse as _pub_parse, _slug as _pub_slug
 
 DEFINITION = ("orphan pages: published pages not linked from any WebsiteMenu, "
               "so unreachable from navigation and effectively unread")
@@ -60,4 +61,79 @@ dead_pages_subgraph = Subgraph(
     inputs=["website_id"],
     outputs=["dead_pages", "definition", "caveat"],
     build=_build_dead_pages,
+)
+
+
+# --- publish sub-agent: perceive -> decide -> act -> re-read, with idempotency + compensation ---
+
+def _fixture(posts, *statuses):
+    for p in posts:
+        if p.get("status") in statuses and "fixture" in (p.get("title") or "").lower():
+            return p
+    return None
+
+
+def _pub_perceive(ctx, s):
+    posts = _list(ctx.client, "BlogPost.list", {"limit": 200})
+    s["_published"] = _fixture(posts, "published")              # idempotency: already done?
+    s["_draft"] = _fixture(posts, None, "draft")               # idempotency+: a half-done draft to reuse
+
+
+def _pub_decide(ctx, s):
+    if s.get("_published") or s.get("_draft"):
+        return                                                 # reuse — no need to draft
+    text, _ = llm.draft(PUB_SYSTEM,
+                        "Announce our new line of precision work-holding fixtures for procurement and "
+                        "shop-floor buyers. Say what they are and give one concrete benefit.")
+    post = _pub_parse(text)
+    s["_title"] = post.get("title") or "Introducing our new fixture line"
+    s["_body"] = post.get("content") or text
+
+
+def _pub_act(ctx, s):
+    if s.get("_published"):                                     # already published: reuse, write nothing
+        p = s["_published"]
+        s.update(published_post_id=p.get("id"), post_title=p.get("title"),
+                 published_status="published", note="already published (idempotent)")
+        return
+    if s.get("_draft"):                                        # reuse a half-done draft (crash-safe)
+        pid, title = s["_draft"].get("id"), s["_draft"].get("title")
+        s["note"] = "reused an existing draft (idempotent)"
+    else:
+        created = ctx.client.call("BlogPost.create", {
+            "title": s["_title"], "slug": _pub_slug(s["_title"]),
+            "website_id": s["website_id"], "content": s["_body"]})
+        pid, title = created["id"], s["_title"]
+    try:
+        ctx.client.call("BlogPost.publish", {"id": pid})
+    except Exception:
+        try:
+            ctx.client.call("BlogPost.archive", {"id": pid})   # compensation: undo the orphaned create
+        except Exception:
+            pass
+        raise
+    s.update(_pid=pid, post_title=title)
+
+
+def _pub_reread(ctx, s):
+    pid = s.get("_pid") or s.get("published_post_id")
+    if not pid:
+        return
+    back = ctx.client.call("BlogPost.get", {"id": pid})
+    s.update(published_post_id=pid, published_status=back.get("status"))
+
+
+def _build_publish():
+    return (DAG(max_workers=1)
+            .add(Node("perceive", _pub_perceive))
+            .add(Node("decide", _pub_decide, deps=["perceive"]))
+            .add(Node("act", _pub_act, deps=["decide"]))
+            .add(Node("reread", _pub_reread, deps=["act"])))
+
+
+publish_subgraph = Subgraph(
+    name="publish",
+    inputs=["website_id"],
+    outputs=["published_post_id", "post_title", "published_status", "note"],
+    build=_build_publish,
 )
