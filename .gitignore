@@ -16,6 +16,10 @@ harness/runs/
 agent/mem_store/
 *.log
 
+# Local probe-and-draft output (keep local; the curated reports stay tracked)
+docs/enhancements/*-enhancement-scan.md
+docs/bug-reports/*-daily-hunt.md
+
 # macOS
 .DS_Store
 
