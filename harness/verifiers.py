@@ -36,18 +36,41 @@ def published_fixture_post_exists(client):
     return False, "no PUBLISHED post with 'fixture' in the title"
 
 
-def orphan_pages_from_db(client):
-    """Independent recompute of 'pages nobody reads' = orphan pages.
+def _url_links_slug(url, slug):
+    """A menu url links a page when its PATH ends with /<slug> (query/fragment/trailing-slash ignored)."""
+    if not slug:
+        return False
+    path = (url or "").split("?", 1)[0].split("#", 1)[0].rstrip("/").lower()
+    return path.endswith("/" + slug)
 
-    v1 heuristic: published pages whose slug appears in no WebsiteMenu item.
-    TODO: also subtract pages linked from other pages' bodies. Returns the list.
+
+def _orphans(pages, menus):
+    """Published pages reachable from no WebsiteMenu item — computed STRUCTURALLY.
+
+    A menu item references a page by `page_id` (direct) or by `url` (path ends with /slug).
+    This is deliberately NOT the agent's `str(menus)` substring test, which both
+    false-positives (page linked only by page_id, slug absent from any url text) and
+    false-negatives (slug is a substring of unrelated menu text). The verifier must be
+    able to catch a wrong agent, so it recomputes with its own, independent rule.
     """
+    linked_ids = {m.get("page_id") for m in menus if m.get("page_id")}
+    urls = [m.get("url") for m in menus]
+    out = []
+    for p in pages:
+        if p.get("status") != "published":
+            continue
+        slug = (p.get("slug") or "").lower()
+        linked = p.get("id") in linked_ids or any(_url_links_slug(u, slug) for u in urls)
+        if not linked:
+            out.append(p)
+    return out
+
+
+def orphan_pages_from_db(client):
+    """Independent recompute of 'pages nobody reads' = orphan pages (structural)."""
     pages = _list(client, "Webpage.list", {"website_id": config.WEBSITE_SURYODAYA, "limit": 200})
     menus = _list(client, "WebsiteMenu.list", {"website_id": config.WEBSITE_SURYODAYA, "limit": 200})
-    menu_blob = str(menus).lower()
-    published = [p for p in pages if p.get("status") == "published"]
-    orphans = [p for p in published if (p.get("slug") or "").lower() not in menu_blob]
-    return orphans
+    return _orphans(pages, menus)
 
 
 def dead_pages_answer_matches(client, state):
