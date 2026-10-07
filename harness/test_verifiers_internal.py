@@ -8,7 +8,8 @@ Run:
     python3 -m harness.test_verifiers_internal
     # or: pytest harness/test_verifiers_internal.py
 """
-from harness.verifiers import _orphans
+from harness.verifiers import _orphans, _open_escalation
+from agent.analyst import _own_session
 
 
 def _page(pid, slug, status="published"):
@@ -41,6 +42,33 @@ def test_page_linked_by_matching_url_path_is_not_orphan():
 def test_draft_pages_are_never_orphans():
     pages = [_page("d1", "secret", status="draft")]
     assert _orphans(pages, []) == []
+
+
+def test_open_escalation_matched_by_subject():
+    rows = [{"subject": "other", "status": "open", "number": "ESC-9"},
+            {"subject": "MINE", "status": "acknowledged", "number": "ESC-1"}]
+    assert _open_escalation(rows, "MINE")["number"] == "ESC-1"
+
+
+def test_resolved_escalation_is_not_counted_open():
+    rows = [{"subject": "MINE", "status": "resolved", "number": "ESC-2"}]
+    assert _open_escalation(rows, "MINE") is None
+
+
+def test_no_escalation_with_our_subject_returns_none():
+    rows = [{"subject": "someone-elses", "status": "open"}]
+    assert _open_escalation(rows, "MINE") is None
+
+
+def test_own_session_matches_our_creator_and_title():
+    rows = [{"id": "s1", "created_by": "ME", "title": "team09 web-agent"},
+            {"id": "s2", "created_by": "OTHER", "title": "team09 web-agent"}]
+    assert _own_session(rows, "ME", "team09 web-agent")["id"] == "s1"
+
+
+def test_own_session_ignores_other_teams_sessions():
+    rows = [{"id": "s2", "created_by": "OTHER", "title": "team09 web-agent"}]
+    assert _own_session(rows, "ME", "team09 web-agent") is None
 
 
 if __name__ == "__main__":
