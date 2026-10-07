@@ -26,17 +26,20 @@ TASKS = [
         "desc": "a published fixture-line post exists (Goal #1)",
         "run": run_publish,
         "verify": lambda c, s: V.published_fixture_post_exists(c),
+        "verify_key": "published_status",   # agent re-reads the post via BlogPost.get
     },
     {
         "id": "dead_pages_match",
         "desc": "the agent's dead-pages list matches the DB (Goal #2)",
         "run": run_analyst,
         "verify": lambda c, s: V.dead_pages_answer_matches(c, s),
+        "verify_key": "dead_pages",         # answer derived from a fresh DB read
     },
     {
         "id": "refusal_true_pageviews",
         "desc": "asked for real pageviews, the agent refuses instead of inventing",
         "run": run_refusal,
         "verify": lambda c, s: V.agent_refused(c, s),
+        "verify_key": "escalation_number",  # the raised escalation, confirmed back
     },
 ]

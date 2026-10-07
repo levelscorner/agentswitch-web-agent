@@ -8,7 +8,8 @@ Run:
     python3 -m harness.test_verifiers_internal
     # or: pytest harness/test_verifiers_internal.py
 """
-from harness.verifiers import _orphans, _open_escalation
+from harness.verifiers import _orphans, _open_escalation, _tenant_clean
+from harness.four_fields import verification_of
 from agent.analyst import _own_session
 
 
@@ -69,6 +70,29 @@ def test_own_session_matches_our_creator_and_title():
 def test_own_session_ignores_other_teams_sessions():
     rows = [{"id": "s2", "created_by": "OTHER", "title": "team09 web-agent"}]
     assert _own_session(rows, "ME", "team09 web-agent") is None
+
+
+# --- Phase 2: real four-field scoring ---------------------------------------
+
+def test_tenant_clean_true_when_only_our_sites_visible():
+    assert _tenant_clean([{"id": "A"}, {"id": "B"}], {"A", "B"}) is True
+
+
+def test_tenant_clean_false_when_a_foreign_site_is_visible():
+    assert _tenant_clean([{"id": "A"}, {"id": "FOREIGN"}], {"A", "B"}) is False
+
+
+def test_verification_na_when_agent_did_not_run():
+    assert verification_of(ran=False, state={}, reread_key="published_status") == "n/a"
+
+
+def test_verification_verified_when_reread_field_present():
+    assert verification_of(ran=True, state={"published_status": "published"},
+                           reread_key="published_status") == "verified"
+
+
+def test_verification_no_attempt_when_reread_field_absent():
+    assert verification_of(ran=True, state={}, reread_key="published_status") == "no_attempt"
 
 
 if __name__ == "__main__":

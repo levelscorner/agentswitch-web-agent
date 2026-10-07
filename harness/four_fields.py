@@ -27,3 +27,15 @@ class Score:
 
 
 HEADER = f"{'task':<26} {'outcome':<6} {'integ':<7} {'verify':<12} cost"
+
+
+def verification_of(ran, state, reread_key):
+    """Did the AGENT itself re-read the DB to confirm its own action (not just claim it)?
+
+      ran=False                 -> 'n/a'         read-only task, the agent took no action
+      ran + reread field set    -> 'verified'    the agent read its own result back
+      ran + reread field absent -> 'no_attempt'  the agent acted but never confirmed
+    """
+    if not ran:
+        return "n/a"
+    return "verified" if (reread_key and state.get(reread_key)) else "no_attempt"
