@@ -8,7 +8,8 @@ Run:
     python3 -m harness.test_verifiers_internal
     # or: pytest harness/test_verifiers_internal.py
 """
-from harness.verifiers import _orphans, _open_escalation, _tenant_clean, trace_recorded
+from harness.verifiers import (_orphans, _open_escalation, _tenant_clean, trace_recorded,
+                               _count_published_fixtures, _count_open_escalations)
 from harness.four_fields import verification_of
 from agent.analyst import _own_session
 
@@ -107,6 +108,22 @@ def test_trace_recorded_false_when_empty():
 
 def test_trace_recorded_false_without_dag_order():
     assert trace_recorded({"timings": {"fetch_pages": 0.12}}) is False
+
+
+# --- Phase 4: idempotency coverage -------------------------------------------
+
+def test_count_published_fixtures_only_counts_published_fixture_posts():
+    posts = [{"status": "published", "title": "Our new fixture line"},
+             {"status": "draft", "title": "fixture draft"},
+             {"status": "published", "title": "About us"}]
+    assert _count_published_fixtures(posts) == 1
+
+
+def test_count_open_escalations_by_subject_ignores_closed_and_others():
+    rows = [{"subject": "MINE", "status": "open"},
+            {"subject": "MINE", "status": "resolved"},
+            {"subject": "other", "status": "open"}]
+    assert _count_open_escalations(rows, "MINE") == 1
 
 
 if __name__ == "__main__":

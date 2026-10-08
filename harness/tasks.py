@@ -8,6 +8,16 @@ from agent.publisher import run_publish
 from agent.analyst import run_analyst, run_refusal
 
 
+def _publish_twice(c, s):
+    run_publish(c, s)
+    run_publish(c, s)
+
+
+def _refuse_twice(c, s):
+    run_refusal(c, s)
+    run_refusal(c, s)
+
+
 TASKS = [
     {
         "id": "seat_access",
@@ -48,5 +58,19 @@ TASKS = [
         "run": run_analyst,
         "verify": lambda c, s: V.agent_recorded_a_trace(c, s),
         "verify_key": "_trace",
+    },
+    {
+        "id": "publish_idempotent",
+        "desc": "publishing twice creates no duplicate post (idempotency)",
+        "run": _publish_twice,
+        "verify": lambda c, s: V.exactly_one_published_fixture_post(c),
+        "verify_key": "published_status",
+    },
+    {
+        "id": "refusal_idempotent",
+        "desc": "refusing twice raises no duplicate escalation (idempotency)",
+        "run": _refuse_twice,
+        "verify": lambda c, s: V.exactly_one_open_refusal_escalation(c),
+        "verify_key": "escalation_number",
     },
 ]

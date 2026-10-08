@@ -129,3 +129,27 @@ def agent_recorded_a_trace(client, state):
     t = state.get("_trace") or {}
     nodes = list((t.get("timings") or {}).keys())
     return trace_recorded(t), f"trace nodes={nodes} order={t.get('dag_order')}"
+
+
+def _count_published_fixtures(posts):
+    return sum(1 for p in posts
+               if p.get("status") == "published" and "fixture" in (p.get("title") or "").lower())
+
+
+def exactly_one_published_fixture_post(client):
+    """Idempotency: publishing again must not create a second published fixture post."""
+    n = _count_published_fixtures(_list(client, "BlogPost.list", {"limit": 200}))
+    return (n == 1), f"{n} published fixture post(s) — idempotent publish => exactly 1"
+
+
+def _count_open_escalations(rows, subject):
+    return sum(1 for r in rows
+               if (r.get("subject") or "") == subject
+               and (r.get("status") or "").lower() not in _CLOSED_STATUSES)
+
+
+def exactly_one_open_refusal_escalation(client):
+    """Idempotency: refusing again must reuse the open escalation, not raise a duplicate."""
+    n = _count_open_escalations(_list(client, "AgentEscalation.list", {"limit": 200}),
+                                config.REFUSAL_ESCALATION_SUBJECT)
+    return (n == 1), f"{n} open refusal escalation(s) — idempotent => exactly 1"
