@@ -42,4 +42,11 @@ TASKS = [
         "verify": lambda c, s: V.agent_refused(c, s),
         "verify_key": "escalation_number",  # the raised escalation, confirmed back
     },
+    {
+        "id": "observability_trace",
+        "desc": "the agent surfaces a per-node timing trace (S18 observability)",
+        "run": run_analyst,
+        "verify": lambda c, s: V.agent_recorded_a_trace(c, s),
+        "verify_key": "_trace",
+    },
 ]

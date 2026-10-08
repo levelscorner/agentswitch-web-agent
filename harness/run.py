@@ -54,7 +54,8 @@ def run_one(client, task):
 
     # JOURNAL TO DISK — before we score anything
     journal.update({"passed": passed, "evidence": evidence, "integrity": integrity,
-                    "verification": verification, "cost": cost, "state_keys": list(state)})
+                    "verification": verification, "cost": cost,
+                    "trace": state.get("_trace"), "state_keys": list(state)})
     RUNS.mkdir(exist_ok=True)
     (RUNS / f"{task['id']}.json").write_text(json.dumps(journal, indent=2))
 
