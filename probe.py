@@ -16,6 +16,7 @@ Reads config from the environment (see .env.example):
 """
 import json
 import os
+import ssl
 import sys
 import urllib.request
 import urllib.error
@@ -28,6 +29,22 @@ OUT = Path(__file__).parent / "probe-out"
 WEBSITE_HINTS = ("page", "post", "blog", "publication", "article", "view", "visit", "analytic")
 
 
+def _ssl_context():
+    """python.org Python on macOS can't find the system root certs; use certifi's bundle
+    (same fix as agent/client.py). Falls back to the default context, then to None."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        try:
+            return ssl.create_default_context()
+        except Exception:
+            return None
+
+
+_SSL = _ssl_context()
+
+
 def _req(method, path, token=None, body=None, timeout=30):
     url = BASE + path
     data = json.dumps(body).encode() if body is not None else None
@@ -38,7 +55,7 @@ def _req(method, path, token=None, body=None, timeout=30):
         headers["Authorization"] = "Bearer " + token
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urllib.request.urlopen(req, timeout=timeout, context=_SSL) as r:
             return r.status, json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         try:
