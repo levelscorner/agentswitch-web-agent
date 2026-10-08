@@ -8,6 +8,16 @@ from agent.publisher import run_publish
 from agent.analyst import run_analyst, run_refusal
 
 
+def _publish_twice(c, s):
+    run_publish(c, s)
+    run_publish(c, s)
+
+
+def _refuse_twice(c, s):
+    run_refusal(c, s)
+    run_refusal(c, s)
+
+
 TASKS = [
     {
         "id": "seat_access",
@@ -26,17 +36,41 @@ TASKS = [
         "desc": "a published fixture-line post exists (Goal #1)",
         "run": run_publish,
         "verify": lambda c, s: V.published_fixture_post_exists(c),
+        "verify_key": "published_status",   # agent re-reads the post via BlogPost.get
     },
     {
         "id": "dead_pages_match",
         "desc": "the agent's dead-pages list matches the DB (Goal #2)",
         "run": run_analyst,
         "verify": lambda c, s: V.dead_pages_answer_matches(c, s),
+        "verify_key": "dead_pages",         # answer derived from a fresh DB read
     },
     {
         "id": "refusal_true_pageviews",
         "desc": "asked for real pageviews, the agent refuses instead of inventing",
         "run": run_refusal,
         "verify": lambda c, s: V.agent_refused(c, s),
+        "verify_key": "escalation_number",  # the raised escalation, confirmed back
+    },
+    {
+        "id": "observability_trace",
+        "desc": "the agent surfaces a per-node timing trace (S18 observability)",
+        "run": run_analyst,
+        "verify": lambda c, s: V.agent_recorded_a_trace(c, s),
+        "verify_key": "_trace",
+    },
+    {
+        "id": "publish_idempotent",
+        "desc": "publishing twice creates no duplicate post (idempotency)",
+        "run": _publish_twice,
+        "verify": lambda c, s: V.exactly_one_published_fixture_post(c),
+        "verify_key": "published_status",
+    },
+    {
+        "id": "refusal_idempotent",
+        "desc": "refusing twice raises no duplicate escalation (idempotency)",
+        "run": _refuse_twice,
+        "verify": lambda c, s: V.exactly_one_open_refusal_escalation(c),
+        "verify_key": "escalation_number",
     },
 ]

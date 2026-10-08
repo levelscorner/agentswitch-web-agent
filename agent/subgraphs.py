@@ -29,10 +29,25 @@ def _fetch_menus(ctx, s):
     s["_menus"] = _list(ctx.client, "WebsiteMenu.list", {"website_id": s["website_id"], "limit": 200})
 
 
+def _menu_links_slug(url, slug):
+    """A menu url links a page when its PATH ends with /<slug> (query/fragment/slash ignored)."""
+    if not slug:
+        return False
+    path = (url or "").split("?", 1)[0].split("#", 1)[0].rstrip("/").lower()
+    return path.endswith("/" + slug)
+
+
 def _detect_orphans(ctx, s):
+    # Structural reachability: a page is linked when a menu item targets it by page_id
+    # or a menu url path ends with its slug. (The old str(menus) substring test both
+    # missed real orphans and invented fake ones.)
+    menus = s.get("_menus") or []
+    linked_ids = {m.get("page_id") for m in menus if m.get("page_id")}
+    urls = [m.get("url") for m in menus]
     published = [p for p in (s.get("_pages") or []) if p.get("status") == "published"]
-    blob = str(s.get("_menus") or []).lower()
-    orphans = [p for p in published if (p.get("slug") or "").lower() not in blob]
+    orphans = [p for p in published
+               if p.get("id") not in linked_ids
+               and not any(_menu_links_slug(u, (p.get("slug") or "").lower()) for u in urls)]
     s.merge("dead_pages_candidates",
             [{"id": p.get("id"), "title": p.get("title"), "slug": p.get("slug")} for p in orphans])
 
