@@ -1,5 +1,6 @@
 # Runtime deps for the agent + harness.
 # The MCP client (agent/client.py) is otherwise stdlib-only; certifi just gives it
 # a CA bundle so python.org Python on macOS can verify the platform's TLS cert.
-anthropic>=1.7,<2
+anthropic>=1.7,<2            # local dev model provider (fallback)
+openai>=1.40,<2             # the AgentSwitch official run supplies an OpenAI-compatible model
 certifi>=2024.0
