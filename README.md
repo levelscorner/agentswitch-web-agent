@@ -87,6 +87,28 @@ respond()
 
 ---
 
+## The scored harness
+
+Seven tasks, each a `(passed, evidence)` verifier that re-reads the database — never the
+agent's words. `python -m harness.runner` writes `results.json`; the course runs the same
+entrypoint server-side against a fresh copy of our instance (`agentswitch-harness.toml`).
+
+| Task | What the DB must show |
+|---|---|
+| `seat_access` | our seat can reach the website app |
+| `site_has_published_pages` | the live site has ≥1 published page |
+| `publish_fixture_post` | a **published** post with "fixture" in the title exists |
+| `dead_pages_match` | the agent's orphan list equals the **structural** recompute (page_id or url-path, not substring) |
+| `refusal_true_pageviews` | the agent refused the impossible ask **iff** the pages carry no view data (`Webpage` has no view field) |
+| `observability_trace` | the run surfaced per-node timings + DAG order |
+| `publish_idempotent` | re-publishing yields exactly one published fixture post |
+
+Refusal is verified purely from DB truth: Release 8.1 removed `AgentEscalation.create` from
+this seat's grant, so the harness confirms the refusal decision against the data, not an
+escalation row. Last official server run: **7/7 passed** (commit `5f6ca27`).
+
+---
+
 ## Repository layout
 
 ```
