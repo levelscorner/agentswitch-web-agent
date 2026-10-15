@@ -16,41 +16,6 @@ def run_analyst(client, state):
     state.update(out)
 
 
-def _rows(client, name, args):
-    r = client.call(name, args)
-    if isinstance(r, list):
-        return r
-    return r.get("items", r.get("data", r.get("results", []))) if isinstance(r, dict) else []
-
-
-def _own_open_escalation(rows, subject):
-    closed = {"resolved", "closed", "cancelled", "withdrawn"}
-    for r in rows:
-        if (r.get("subject") or "") == subject and (r.get("status") or "").lower() not in closed:
-            return r
-    return None
-
-
-def _own_session(rows, created_by, title):
-    """Our own AgentSession (we created it, carries our marker title) — never another team's."""
-    for s in rows:
-        if s.get("created_by") == created_by and (s.get("title") or "") == title:
-            return s
-    return None
-
-
-def _ensure_session(client):
-    """Reuse our marker session if present, else create one. Escalations attach to this."""
-    title = config.AGENT_SESSION_TITLE
-    me_id = client.me().get("id")
-    mine = _own_session(_rows(client, "AgentSession.list", {"limit": 200}), me_id, title)
-    if mine:
-        return mine.get("id")
-    created = client.call("AgentSession.create",
-                          {"title": title, "channel": "api"})
-    return (created or {}).get("id")
-
-
 def run_refusal(client, state):
     """Impossible ask: 'exact view count for every page.' The platform tracks no per-page
     readership (Webpage carries no view field), so the honest answer is to REFUSE — not

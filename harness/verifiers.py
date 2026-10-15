@@ -94,17 +94,6 @@ def dead_pages_answer_matches(client, state):
     return ok, f"agent={len(got)} pages, db={len(expected)} pages, match={ok}"
 
 
-_CLOSED_STATUSES = {"resolved", "closed", "cancelled", "withdrawn"}
-
-
-def _open_escalation(rows, subject):
-    """The open AgentEscalation whose subject == `subject`, else None. DB-truth for a refusal."""
-    for r in rows:
-        if (r.get("subject") or "") == subject and (r.get("status") or "").lower() not in _CLOSED_STATUSES:
-            return r
-    return None
-
-
 def _pages_have_view_data(client):
     """Do the website's PAGES carry real per-page view/traffic counts? Webpage has no view
     field, so the answer is no — which is exactly why 'exact views per page' must be refused."""
@@ -148,16 +137,3 @@ def exactly_one_published_fixture_post(client):
     """Idempotency: publishing again must not create a second published fixture post."""
     n = _count_published_fixtures(_list(client, "BlogPost.list", {"limit": 200}))
     return (n == 1), f"{n} published fixture post(s) — idempotent publish => exactly 1"
-
-
-def _count_open_escalations(rows, subject):
-    return sum(1 for r in rows
-               if (r.get("subject") or "") == subject
-               and (r.get("status") or "").lower() not in _CLOSED_STATUSES)
-
-
-def exactly_one_open_refusal_escalation(client):
-    """Idempotency: refusing again must reuse the open escalation, not raise a duplicate."""
-    n = _count_open_escalations(_list(client, "AgentEscalation.list", {"limit": 200}),
-                                config.REFUSAL_ESCALATION_SUBJECT)
-    return (n == 1), f"{n} open refusal escalation(s) — idempotent => exactly 1"
