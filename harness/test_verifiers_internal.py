@@ -10,6 +10,7 @@ Run:
 """
 from harness.verifiers import _orphans, _tenant_clean, trace_recorded, _count_published_fixtures
 from harness.four_fields import verification_of
+from agent.verify import _orphans_from
 
 
 def _page(pid, slug, status="published"):
@@ -42,6 +43,23 @@ def test_page_linked_by_matching_url_path_is_not_orphan():
 def test_draft_pages_are_never_orphans():
     pages = [_page("d1", "secret", status="draft")]
     assert _orphans(pages, []) == []
+
+
+# --- Agent self-check: verify.py uses the SAME structural rule, not str(menus) -----
+
+def test_agent_verify_orphans_structural_matches_grader():
+    # The agent's own S17 reality-check must use structural reachability, not the old
+    # str(menus).lower() substring test: a page linked only by page_id is NOT an orphan,
+    # and a slug that is a coincidental substring of menu text IS still an orphan.
+    pages = [_page("p1", "about"), _page("p2", "news")]
+    menus = [{"page_id": "p1", "url": None},
+             {"page_id": None, "url": "https://example.com/newsletter"}]
+    got = {p["id"] for p in _orphans_from(pages, menus)}
+    assert got == {"p2"}  # p1 linked by page_id; p2's slug only coincides inside 'newsletter'
+
+
+def test_agent_verify_orphans_ignores_drafts():
+    assert _orphans_from([_page("d1", "secret", status="draft")], []) == []
 
 
 # --- Phase 2: real four-field scoring ---------------------------------------

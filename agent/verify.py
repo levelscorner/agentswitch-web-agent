@@ -5,6 +5,7 @@ Fall back to an LLM judge only for fuzzy quality that has no hard ground truth.
 `run_verify` is the DAG node that runs after the goal nodes and writes the verdict.
 """
 from agent import config, llm
+from agent.subgraphs import _menu_links_slug
 
 
 def _list(client, name, args):
@@ -12,13 +13,27 @@ def _list(client, name, args):
     return r if isinstance(r, list) else r.get("items", r.get("data", r.get("results", [])))
 
 
+def _orphans_from(pages, menus):
+    """Published pages linked from no WebsiteMenu item — computed STRUCTURALLY.
+
+    A menu item references a page by `page_id` or by a `url` whose path ends with /slug.
+    This is the same rule the sub-agent uses (shared `_menu_links_slug`), NOT the old
+    str(menus) substring test, which both invented orphans (page linked only by page_id)
+    and hid real ones (slug a coincidental substring of unrelated menu text).
+    """
+    linked_ids = {m.get("page_id") for m in menus if m.get("page_id")}
+    urls = [m.get("url") for m in menus]
+    return [p for p in pages
+            if p.get("status") == "published"
+            and p.get("id") not in linked_ids
+            and not any(_menu_links_slug(u, (p.get("slug") or "").lower()) for u in urls)]
+
+
 def _orphans(client):
     wid = config.WEBSITE_SURYODAYA
     pages = _list(client, "Webpage.list", {"website_id": wid, "limit": 200})
     menus = _list(client, "WebsiteMenu.list", {"website_id": wid, "limit": 200})
-    blob = str(menus).lower()
-    return {p.get("id") for p in pages
-            if p.get("status") == "published" and (p.get("slug") or "").lower() not in blob}
+    return {p.get("id") for p in _orphans_from(pages, menus)}
 
 
 def reality_check(client, state):
