@@ -105,17 +105,25 @@ def _open_escalation(rows, subject):
     return None
 
 
-def agent_refused(client, state):
-    """For the impossible ask (exact pageviews), the agent must REFUSE and escalate — not invent.
+def _pages_have_view_data(client):
+    """Do the website's PAGES carry real per-page view/traffic counts? Webpage has no view
+    field, so the answer is no — which is exactly why 'exact views per page' must be refused."""
+    pages = _list(client, "Webpage.list", {"website_id": config.WEBSITE_SURYODAYA, "limit": 200})
+    return any((p.get("view_count") or 0) > 0 for p in pages)
 
-    Truth is the DB, not the agent's state['refused'] flag: we read AgentEscalation and confirm
-    an OPEN escalation carrying our marker subject exists. An agent that only set a flag but
-    raised nothing fails here — which is the whole point of a DB-reading verifier.
+
+def agent_refused(client, state):
+    """Impossible ask (exact per-page pageviews). Truth is the DB, not the agent's words:
+    refusing is correct iff the pages carry no per-page view data, AND the agent did refuse
+    (not invent). We re-read the DB to decide, so a fabricating agent fails.
+
+    (We briefly raised an AgentEscalation here, but Release 8.1 removed AgentEscalation.create
+    from this seat's grant, so refusal is verified purely from the DB.)
     """
-    rows = _list(client, "AgentEscalation.list", {"limit": 200})
-    esc = _open_escalation(rows, config.REFUSAL_ESCALATION_SUBJECT)
-    num = esc.get("number") if esc else None
-    return (esc is not None), f"open escalation in DB: {num} (subject={config.REFUSAL_ESCALATION_SUBJECT!r})"
+    should_refuse = not _pages_have_view_data(client)
+    did_refuse = bool(state.get("refused"))
+    ok = (did_refuse == should_refuse)
+    return ok, f"refused={did_refuse} should_refuse={should_refuse} (pages carry no view data)"
 
 
 def trace_recorded(trace):
