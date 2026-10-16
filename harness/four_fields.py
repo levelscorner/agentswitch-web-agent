@@ -29,13 +29,22 @@ class Score:
 HEADER = f"{'task':<26} {'outcome':<6} {'integ':<7} {'verify':<12} cost"
 
 
-def verification_of(ran, state, reread_key):
+def verification_of(ran, state, reread_key, confirmed=None):
     """Did the AGENT itself re-read the DB to confirm its own action (not just claim it)?
 
-      ran=False                 -> 'n/a'         read-only task, the agent took no action
-      ran + reread field set    -> 'verified'    the agent read its own result back
-      ran + reread field absent -> 'no_attempt'  the agent acted but never confirmed
+      ran=False                      -> 'n/a'         read-only task, no action taken
+      ran + reread field absent      -> 'no_attempt'  the agent acted but never confirmed
+      ran + reread present, confirmed -> 'verified'   the re-read shows the action landed
+      ran + reread present, !confirmed -> 'unverified' the re-read shows it did NOT land
+
+    `confirmed` lets a write task assert more than key-presence: pass the result of the
+    agent's own read-back (e.g. published_status == 'published'). Omit it (None) and a
+    present reread key counts as verified, as before — the right default for read-only reads.
     """
     if not ran:
         return "n/a"
-    return "verified" if (reread_key and state.get(reread_key)) else "no_attempt"
+    if not (reread_key and state.get(reread_key)):
+        return "no_attempt"
+    if confirmed is None:
+        return "verified"
+    return "verified" if confirmed else "unverified"

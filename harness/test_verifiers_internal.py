@@ -11,6 +11,7 @@ Run:
 from harness.verifiers import _orphans, _tenant_clean, trace_recorded, _count_published_fixtures
 from harness.four_fields import verification_of
 from agent.verify import _orphans_from
+from agent.subgraphs import _outcome_summary, _caveat_from
 
 
 def _page(pid, slug, status="published"):
@@ -83,6 +84,36 @@ def test_verification_verified_when_reread_field_present():
 
 def test_verification_no_attempt_when_reread_field_absent():
     assert verification_of(ran=True, state={}, reread_key="published_status") == "no_attempt"
+
+
+def test_verification_verified_when_reread_present_and_confirmed():
+    assert verification_of(ran=True, state={"published_status": "published"},
+                           reread_key="published_status", confirmed=True) == "verified"
+
+
+def test_verification_unverified_when_reread_present_but_not_confirmed():
+    # #5 fallback left the post as a draft: the agent DID re-read, but it did not land.
+    assert verification_of(ran=True, state={"published_status": "draft"},
+                           reread_key="published_status", confirmed=False) == "unverified"
+
+
+# --- #3: conversion_attribution probe makes the caveat evidence-based -------------
+
+def test_outcome_summary_reads_coverage_and_attributed_conversions():
+    result = {"paths": [{}, {}, {}], "summary": {"conversions_attributed": 0}}
+    assert _outcome_summary(result) == {"covered": 3, "with_outcomes": 0}
+    result2 = {"paths": [{}, {}], "summary": {"conversions_attributed": 2}}
+    assert _outcome_summary(result2) == {"covered": 2, "with_outcomes": 2}
+
+
+def test_caveat_unavailable_falls_back_to_structural_proxy():
+    from agent.subgraphs import CAVEAT
+    assert _caveat_from(None) == CAVEAT
+
+
+def test_caveat_reports_zero_outcomes_with_real_count():
+    c = _caveat_from({"covered": 8, "with_outcomes": 0})
+    assert "0 attributed conversions across 8" in c
 
 
 # --- Phase 3: observability trace --------------------------------------------

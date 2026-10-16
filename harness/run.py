@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from agent.client import Client
+from agent import llm, reliability
 from . import verifiers as V
 from .four_fields import Score, HEADER, verification_of
 from .tasks import TASKS
@@ -25,6 +26,10 @@ def run_one(client, task):
     journal = {"task": task["id"], "desc": task["desc"], "started": started, "events": []}
 
     # ACT — run the agent for this task, if one is wired. Count the MCP calls IT makes.
+    # The S12 budget/circuit breaker governs the graded path too (not just the respond
+    # pipeline): a fresh per-task cap so a loop can't burn the token budget during grading.
+    breaker = reliability.Breaker()
+    llm.set_breaker(breaker)
     calls_before = client.ncalls
     if task["run"]:
         try:
@@ -40,8 +45,9 @@ def run_one(client, task):
     except Exception as e:
         passed, evidence = False, f"verify error: {e}"
 
-    # COST — real MCP calls the agent made (not the verifier's) + wall time
-    cost = {"calls": agent_calls, "seconds": round(time.time() - started, 1)}
+    # COST — real MCP calls the agent made (not the verifier's) + model calls + wall time
+    cost = {"calls": agent_calls, "model_calls": breaker.calls,
+            "seconds": round(time.time() - started, 1)}
 
     # INTEGRITY — real check: did the run keep us inside our own company's data?
     try:
@@ -49,8 +55,13 @@ def run_one(client, task):
     except Exception:
         integrity = "unknown"
 
-    # VERIFICATION — did the AGENT itself re-read its own action from the DB?
-    verification = verification_of(bool(task["run"]), state, task.get("verify_key"))
+    # VERIFICATION — did the AGENT itself re-read its own action from the DB? For a publish,
+    # demand the read-back actually shows 'published' (not merely that the key is present —
+    # the #5 fallback can leave a draft, which must read as 'unverified', not 'verified').
+    reread_key = task.get("verify_key")
+    confirmed = (state.get("published_status") == "published"
+                 if reread_key == "published_status" else None)
+    verification = verification_of(bool(task["run"]), state, reread_key, confirmed=confirmed)
 
     # JOURNAL TO DISK — before we score anything
     journal.update({"passed": passed, "evidence": evidence, "integrity": integrity,
